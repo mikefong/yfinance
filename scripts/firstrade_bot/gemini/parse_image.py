@@ -73,7 +73,7 @@ if __name__ == "__main__":
         print(f"Length of content saved: {len(model_output_variable)} characters")
         print("---------------------------------")
         # Example of using the variable: saving to a file
-        output_filename = "image_analysis_output.txt"
+        output_filename = "image_analysis_output.csv"
         with open(output_filename, "w") as f:
             f.write(model_output_variable)
         print(f"Content successfully saved to {output_filename}")

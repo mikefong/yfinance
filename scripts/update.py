@@ -2,6 +2,8 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import yfinance as yf
 import time
+from datetime import datetime
+
 
 # --- Configuration ---
 # 1. PATH TO YOUR CREDENTIALS FILE (from Setup Step 2)
@@ -14,6 +16,9 @@ SHEET_ID = '1ODfC3fbgCBIg4uMtdM8MywmMENRajLS2BR2KFdAEXA0'
 # 3. WORKSHEET NAME (The name of your tab)
 WORKSHEET_NAME = 'holdings' 
 # ---------------------
+
+HISTORY_SHEET_NAME = 'history'
+TOTAL_VALUE_CELL = 'O2'   # holdings!O1
 
 def update_google_sheet_prices():
     """
@@ -129,6 +134,9 @@ def update_google_sheet_prices():
         if updates:
              sheet.batch_update(updates)
              print("\n🎉 **All stock prices have been updated in a single batch operation!**")
+	     # Update history tab after holdings are updated
+             update_history_tab(spreadsheet)
+		
         else:
             print("\n⚠️ No successful price updates to write to the sheet.")
 
@@ -136,6 +144,44 @@ def update_google_sheet_prices():
         print(f"❌ Error: Credentials file '{CREDENTIALS_FILE}' not found. Check Setup Step 2.")
     except Exception as e:
         print(f"❌ A critical error occurred during sheet connection or processing: {e}")
+
+
+def update_history_tab(spreadsheet):
+    """
+    Update the 'history' tab with today's total value.
+    If A2 is today -> update value
+    Else -> insert a new row at row 2
+    """
+    try:
+        history_sheet = spreadsheet.worksheet(HISTORY_SHEET_NAME)
+    except gspread.WorksheetNotFound:
+        print(f"❌ Error: Worksheet named '{HISTORY_SHEET_NAME}' not found.")
+        return
+
+    holdings_sheet = spreadsheet.worksheet(WORKSHEET_NAME)
+
+    # Today's date (yyyy-mm-dd, safe for Sheets sorting)
+    today_str = datetime.now().strftime('%Y-%m-%d')
+
+    # Get total value from holdings!O1
+    total_value = holdings_sheet.acell(TOTAL_VALUE_CELL).value
+
+    if not total_value:
+        print("⚠️ Total value in holdings!O2 is empty, skipping history update.")
+        return
+
+    # Read A2 from history
+    a2_value = history_sheet.acell('A2').value
+
+    if a2_value == today_str:
+        # Update existing row
+        history_sheet.update(values=[[total_value]], range_name='B2')
+        print(f"🔄 History updated for {today_str}: {total_value}")
+    else:
+        # Insert new row at row 2
+        history_sheet.insert_row([today_str, total_value], index=2)
+        print(f"🆕 History row added for {today_str}: {total_value}")
+
 
 # Run the function
 update_google_sheet_prices()
